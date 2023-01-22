@@ -26,6 +26,7 @@ NTPClient timeClient(ntpUDP);
 PubSubClient mqttClient(wifiClient);
 Omron_D6FPH omron;
 DHTesp dht;
+char c[8];
 
 void setup_wifi() {
   delay(10);
@@ -94,7 +95,7 @@ void setup() {
   Serial.println("Status\tHumidity (%)\tTemperature (C)\t(F)\tHeatIndex (C)\t(F)");
   String thisBoard= ARDUINO_BOARD;
   Serial.println(thisBoard);
-  dht.setup(2, DHTesp::DHT22); // Connect DHT sensor to GPIO 17
+  dht.setup(2, DHTesp::DHT22); //2 is LED, so we get a blink on each update
 } 
 
 float getPressureOmron() {
@@ -106,6 +107,8 @@ float getPressureOmron() {
   }else{
       Serial.print("\tDifferential Pressure: ");
       Serial.println(pressure);
+      dtostrf(pressure, 1, 1, c); //arg2 is mininum width, arg3 is precision in places past decimal
+      mqttClient.publish("omron-differential-pressure-Pa", c);
   }
   return(pressure);
 }
@@ -116,7 +119,11 @@ float getTemperatureOmron() {
   Serial.println("\tError: Could not read temperature data");
   }else{
       Serial.print("\tTemperature C: ");
-      Serial.println(temperature);
+      Serial.println(temperature);              
+      dtostrf(temperature, 1, 1, c);
+      mqttClient.publish("omron-temperature-C", c);
+      dtostrf(dht.toFahrenheit(temperature), 1, 1, c);
+      mqttClient.publish("omron-temperature-F", c);
   }
   return(temperature);
 }
@@ -126,19 +133,28 @@ void getSampleDHT() {
   Serial.println("DHT22");
   Serial.println("\tStatus\tHumidity (%)\tTemp(C)\t(F)\tHeatIndex (C)\t(F)");
   float humidity = dht.getHumidity();
-  float temperature22 = dht.getTemperature();
+  float temperature = dht.getTemperature();
   Serial.print("\t");
   Serial.print(dht.getStatusString());
   Serial.print("\t");
   Serial.print(humidity, 1);
+  dtostrf(humidity, 1, 1, c);
+  mqttClient.publish("DHT-humidity-%", c);
   Serial.print("\t\t");
-  Serial.print(temperature22, 1);
+  Serial.print(temperature, 1);
+  dtostrf(temperature, 1, 1, c);
+  mqttClient.publish("DHT-temperature-C", c);
   Serial.print("\t");
-  Serial.print(dht.toFahrenheit(temperature22), 1);
+  Serial.print(dht.toFahrenheit(temperature), 1);
+  dtostrf(dht.toFahrenheit(temperature), 1, 1, c);
+  mqttClient.publish("DHT-temperature-F", c);
   Serial.print("\t\t");
-  Serial.print(dht.computeHeatIndex(temperature22, humidity, false), 1);
+  float heatindex = dht.computeHeatIndex(temperature, humidity, false);
+  Serial.print(heatindex, 1);
+  dtostrf(heatindex, 1, 1, c);
+  mqttClient.publish("DHT-heat-index", c);
   Serial.print("\t");
-  Serial.println(dht.computeHeatIndex(dht.toFahrenheit(temperature22), humidity, true), 1);
+  Serial.println(dht.computeHeatIndex(dht.toFahrenheit(temperature), humidity, true), 1);
   
 }
 
