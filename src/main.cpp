@@ -63,29 +63,11 @@ void connect() {
   }
 }
 
-//--------------------------------------
-// function callback called everytime 
-// if a mqtt message arrives from the broker
-//--------------------------------------
-void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived on topic: '");
-  Serial.print(topic);
-  Serial.print("' with payload: ");
-  for (unsigned int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
-  String myCurrentTime = timeClient.getFormattedTime();
-  mqttClient.publish(mqttTopicOut,("ESP8266: Cedalo Mosquitto is awesome. ESP8266-Time: " + myCurrentTime).c_str());
-}
-
-
 void setup() {
   Serial.begin(115200);
   Wire.begin();
   setup_wifi();
   mqttClient.setServer(mqtt_server, mqtt_server_port);
-  mqttClient.setCallback(callback);
 
   // D6FPH Differential Pressure Sensor
   omron.begin(MODEL_0025AD1);
