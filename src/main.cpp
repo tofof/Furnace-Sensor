@@ -22,7 +22,6 @@ const char* mqttTopicOut = "esp-8266-out";
 
 WiFiClient wifiClient;
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
 PubSubClient mqttClient(wifiClient);
 Omron_D6FPH omron;
 DHTesp dht;
@@ -38,7 +37,6 @@ void setup_wifi() {
     delay(500);
     Serial.print(".");
   }
-  timeClient.begin();
   Serial.print("WiFi connected on IP address ");
   Serial.println(WiFi.localIP());
 }
@@ -137,7 +135,6 @@ void getSampleDHT() {
   mqttClient.publish("DHT-heat-index", c);
   Serial.print("\t");
   Serial.println(dht.computeHeatIndex(dht.toFahrenheit(temperature), humidity, true), 1);
-  
 }
 
 void loop() {
@@ -145,7 +142,6 @@ void loop() {
     connect();
   }
   mqttClient.loop();
-  timeClient.update();
 
   getPressureOmron();
   getTemperatureOmron();
