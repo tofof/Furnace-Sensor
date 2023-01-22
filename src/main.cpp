@@ -1,20 +1,92 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include <Omron_D6FPH.h>
-#include "DHTesp.h" // Click here to get the library: http://librarymanager/All#DHTesp
+#include "Omron_D6FPH.h"
+#include "DHTesp.h"
+#include "NTPClient.h"
+#include "ESP8266WiFi.h"
+#include "PubSubClient.h"
+#include "NTPClient.h"
+#include "WiFiUdp.h"
 
-#ifdef ESP32
-#pragma message(THIS EXAMPLE IS FOR ESP8266 ONLY!)
-#error Select ESP8266 board.
-#endif
+#define CERT mqtt_broker_cert
+#define MSG_BUFFER_SIZE (50)
 
+const char* ssid = "Equestria";
+const char* password = "20%cooler";
+const char* mqtt_server = "tofof-2evcmqe1ysph.cedalo.cloud";
+const uint16_t mqtt_server_port = 1883; 
+const char* mqttUser = "airsensor";
+const char* mqttPassword = "derp";
+const char* mqttTopicIn = "esp-8266-in";
+const char* mqttTopicOut = "esp-8266-out";
+
+WiFiClient wifiClient;
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP);
+PubSubClient mqttClient(wifiClient);
 Omron_D6FPH omron;
 DHTesp dht;
 
+void setup_wifi() {
+  delay(10);
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.print(ssid);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  timeClient.begin();
+  Serial.print("WiFi connected on IP address ");
+  Serial.println(WiFi.localIP());
+}
+
+//--------------------------------------
+// function connect called to (re)connect
+// to the broker
+//--------------------------------------
+void connect() {
+  while (!mqttClient.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    String mqttClientId = "";
+    if (mqttClient.connect(mqttClientId.c_str(), mqttUser, mqttPassword)) {
+      Serial.println("connected");
+      mqttClient.subscribe(mqttTopicIn);
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(mqttClient.state());
+      Serial.println(" will try again in 5 seconds");
+      delay(5000);
+    }
+  }
+}
+
+//--------------------------------------
+// function callback called everytime 
+// if a mqtt message arrives from the broker
+//--------------------------------------
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Message arrived on topic: '");
+  Serial.print(topic);
+  Serial.print("' with payload: ");
+  for (unsigned int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+  String myCurrentTime = timeClient.getFormattedTime();
+  mqttClient.publish(mqttTopicOut,("ESP8266: Cedalo Mosquitto is awesome. ESP8266-Time: " + myCurrentTime).c_str());
+}
+
+
 void setup() {
-  // D6FPH Differential Pressure Sensor
-  Serial.begin(9600);
+  Serial.begin(115200);
   Wire.begin();
+  setup_wifi();
+  mqttClient.setServer(mqtt_server, mqtt_server_port);
+  mqttClient.setCallback(callback);
+
+  // D6FPH Differential Pressure Sensor
   omron.begin(MODEL_0025AD1);
 
   // DHT22 Humidity/Temp Sensor
@@ -22,10 +94,6 @@ void setup() {
   Serial.println("Status\tHumidity (%)\tTemperature (C)\t(F)\tHeatIndex (C)\t(F)");
   String thisBoard= ARDUINO_BOARD;
   Serial.println(thisBoard);
-
-  // Autodetect is not working reliable, don't use the following line
-  // dht.setup(17);
-  // use this instead: 
   dht.setup(2, DHTesp::DHT22); // Connect DHT sensor to GPIO 17
 } 
 
@@ -75,6 +143,12 @@ void getSampleDHT() {
 }
 
 void loop() {
+  if (!mqttClient.connected()) {
+    connect();
+  }
+  mqttClient.loop();
+  timeClient.update();
+
   getPressureOmron();
   getTemperatureOmron();
   getSampleDHT();
