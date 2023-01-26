@@ -7,16 +7,15 @@
 #include "PubSubClient.h"
 #include "NTPClient.h"
 #include "WiFiUdp.h"
+#include "secrets.h"
 
 #define CERT mqtt_broker_cert
 #define MSG_BUFFER_SIZE (50)
 
-const char* ssid = "Equestria";
-const char* password = "20%cooler";
-const char* mqtt_server = "tofof-2evcmqe1ysph.cedalo.cloud";
+const char* mqtt_server = "homeassistant";
 const uint16_t mqtt_server_port = 1883; 
 const char* mqttUser = "airsensor";
-const char* mqttPassword = "derp";
+const char* mqttPassword = "airsensor";
 const char* mqttTopicIn = "esp-8266-in";
 const char* mqttTopicOut = "esp-8266-out";
 
@@ -31,8 +30,8 @@ void setup_wifi() {
   delay(10);
   Serial.println();
   Serial.print("Connecting to ");
-  Serial.print(ssid);
-  WiFi.begin(ssid, password);
+  Serial.print(WIFI_SSID);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
