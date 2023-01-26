@@ -14,8 +14,7 @@
 
 const char* mqtt_server = "homeassistant";
 const uint16_t mqtt_server_port = 1883; 
-const char* mqttUser = "airsensor";
-const char* mqttPassword = "airsensor";
+
 const char* mqttTopicIn = "esp-8266-in";
 const char* mqttTopicOut = "esp-8266-out";
 
@@ -48,7 +47,7 @@ void connect() {
   while (!mqttClient.connected()) {
     Serial.print("Attempting MQTT connection...");
     String mqttClientId = "";
-    if (mqttClient.connect(mqttClientId.c_str(), mqttUser, mqttPassword)) {
+    if (mqttClient.connect(mqttClientId.c_str(), MQTT_User, MQTT_Password)) {
       Serial.println("connected");
       mqttClient.subscribe(mqttTopicIn);
     } else {
