@@ -7,6 +7,7 @@
 #include "PubSubClient.h"
 #include "NTPClient.h"
 #include "WiFiUdp.h"
+#include "ArduinoJson.h"
 #include "secrets.h"
 
 #define CERT mqtt_broker_cert
@@ -17,7 +18,8 @@ WiFiUDP ntpUDP;
 PubSubClient mqttClient(wifiClient);
 Omron_D6FPH omron;
 DHTesp dht;
-char c[8];
+
+
 
 void setup_wifi() {
   delay(10);
@@ -31,8 +33,28 @@ void setup_wifi() {
     delay(500);
     Serial.print(".");
   }
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
   Serial.print("WiFi connected on IP address ");
   Serial.println(WiFi.localIP());
+}
+
+void sendMQTTDiscoveryMsg(String topic, String name, String unit, String dev_cla, String val_tpl) {
+  String discoveryTopic = topic + "/config";
+
+  DynamicJsonDocument doc(1024);
+  char buffer[256];
+
+  doc["name"] = name;
+  doc["stat_t"] = "homeassistant/sensor/airsensor/state";
+  //doc["unit_of_meas"] = unit;
+  //doc["dev_cla"] = dev_cla;
+  //doc["frc_upd"] = true;
+  doc["val_tpl"] = val_tpl;
+
+  size_t n = serializeJson(doc, buffer);
+
+  mqttClient.publish(discoveryTopic.c_str(), buffer, n);
 }
 
 //--------------------------------------
@@ -45,6 +67,12 @@ void connect() {
     String mqttClientId = "";
     if (mqttClient.connect(mqttClientId.c_str(), MQTT_User, MQTT_Password)) {
       Serial.println("connected");
+      sendMQTTDiscoveryMsg("homeassistant/sensor/omronT", "Temperature", "°F", "temperature", "{{ value_json.temperatureO }}");
+      sendMQTTDiscoveryMsg("homeassistant/sensor/omronP", "Pressure", "Pa", "pressure", "{{ value_json.pressure }}");
+      sendMQTTDiscoveryMsg("homeassistant/sensor/dhtT", "Temperature", "°F", "temperature", "{{ value_json.temperatureD }}");
+      sendMQTTDiscoveryMsg("homeassistant/sensor/dhtH", "Humidity", "%", "humidity", "{{ value_json.humidity }}");
+      sendMQTTDiscoveryMsg("homeassistant/sensor/dhtI", "Heat Index", "°F", "temperature", "{{ value_json.heatindex }}");
+
     } else {
       Serial.print("failed, rc=");
       Serial.print(mqttClient.state());
@@ -54,6 +82,7 @@ void connect() {
   }
 }
 
+    
 void setup() {
   Serial.begin(115200);
   Wire.begin();
@@ -80,8 +109,6 @@ float getPressureOmron() {
   }else{
       Serial.print("\tDifferential Pressure: ");
       Serial.println(pressure);
-      dtostrf(pressure, 1, 1, c); //arg2 is mininum width, arg3 is precision in places past decimal
-      mqttClient.publish("sensor/omron/pressure", c);
   }
   return(pressure);
 }
@@ -93,9 +120,6 @@ float getTemperatureOmron() {
   }else{
       Serial.print("\tTemperature C: ");
       Serial.println(temperature);              
-      dtostrf(temperature, 1, 1, c);
-      dtostrf(dht.toFahrenheit(temperature), 1, 1, c);
-      mqttClient.publish("sensor/omron/temperature", c);
   }
   return(temperature);
 }
@@ -110,22 +134,30 @@ void getSampleDHT() {
   Serial.print(dht.getStatusString());
   Serial.print("\t");
   Serial.print(humidity, 1);
-  dtostrf(humidity, 1, 1, c);
-  mqttClient.publish("sensor/dht/humidity", c);
   Serial.print("\t\t");
   Serial.print(temperature, 1);
-  dtostrf(temperature, 1, 1, c);
   Serial.print("\t");
   Serial.print(dht.toFahrenheit(temperature), 1);
-  dtostrf(dht.toFahrenheit(temperature), 1, 1, c);
-  mqttClient.publish("sensor/dht/temperature", c);
   Serial.print("\t\t");
   float heatindex = dht.computeHeatIndex(temperature, humidity, false);
   Serial.print(heatindex, 1);
-  dtostrf(dht.toFahrenheit(heatindex), 1, 1, c);
-  mqttClient.publish("sensor/dht/heat_index", c);
   Serial.print("\t");
   Serial.println(dht.computeHeatIndex(dht.toFahrenheit(temperature), humidity, true), 1);
+}
+
+void getReadings() {
+  DynamicJsonDocument doc(1024);
+  char buffer[256];
+  doc["temperatureO"] = dht.toFahrenheit(getTemperatureOmron());
+  doc["pressure"] = getPressureOmron();
+  float humidity = dht.getHumidity();
+  float temperature = dht.getTemperature();
+  float heatindex = dht.computeHeatIndex(temperature, humidity, false);
+  doc["humidity"] = humidity;
+  doc["temperatureD"] = dht.toFahrenheit(temperature);
+  doc["heatindex"] = dht.toFahrenheit(heatindex);
+  size_t n = serializeJson(doc, buffer);
+  mqttClient.publish("homeassistant/sensor/airsensor/state", buffer, n);
 }
 
 void loop() {
@@ -134,9 +166,10 @@ void loop() {
   }
   mqttClient.loop();
 
-  getPressureOmron();
-  getTemperatureOmron();
+  //getPressureOmron();
+  //getTemperatureOmron();
   getSampleDHT();
+  getReadings();
   delay(dht.getMinimumSamplingPeriod());
 }
 
