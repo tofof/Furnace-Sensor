@@ -22,6 +22,8 @@ char c[8];
 void setup_wifi() {
   delay(10);
   Serial.println();
+  WiFi.hostname("ESP-host");
+  WiFi.setPhyMode(WIFI_PHY_MODE_11B);
   Serial.print("Connecting to ");
   Serial.print(WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -79,7 +81,7 @@ float getPressureOmron() {
       Serial.print("\tDifferential Pressure: ");
       Serial.println(pressure);
       dtostrf(pressure, 1, 1, c); //arg2 is mininum width, arg3 is precision in places past decimal
-      mqttClient.publish("omron-differential-pressure-Pa", c);
+      mqttClient.publish("sensor/omron/pressure", c);
   }
   return(pressure);
 }
@@ -92,9 +94,8 @@ float getTemperatureOmron() {
       Serial.print("\tTemperature C: ");
       Serial.println(temperature);              
       dtostrf(temperature, 1, 1, c);
-      mqttClient.publish("omron-temperature-C", c);
       dtostrf(dht.toFahrenheit(temperature), 1, 1, c);
-      mqttClient.publish("omron-temperature-F", c);
+      mqttClient.publish("sensor/omron/temperature", c);
   }
   return(temperature);
 }
@@ -110,20 +111,19 @@ void getSampleDHT() {
   Serial.print("\t");
   Serial.print(humidity, 1);
   dtostrf(humidity, 1, 1, c);
-  mqttClient.publish("DHT-humidity-%", c);
+  mqttClient.publish("sensor/dht/humidity", c);
   Serial.print("\t\t");
   Serial.print(temperature, 1);
   dtostrf(temperature, 1, 1, c);
-  mqttClient.publish("DHT-temperature-C", c);
   Serial.print("\t");
   Serial.print(dht.toFahrenheit(temperature), 1);
   dtostrf(dht.toFahrenheit(temperature), 1, 1, c);
-  mqttClient.publish("DHT-temperature-F", c);
+  mqttClient.publish("sensor/dht/temperature", c);
   Serial.print("\t\t");
   float heatindex = dht.computeHeatIndex(temperature, humidity, false);
   Serial.print(heatindex, 1);
-  dtostrf(heatindex, 1, 1, c);
-  mqttClient.publish("DHT-heat-index", c);
+  dtostrf(dht.toFahrenheit(heatindex), 1, 1, c);
+  mqttClient.publish("sensor/dht/heat_index", c);
   Serial.print("\t");
   Serial.println(dht.computeHeatIndex(dht.toFahrenheit(temperature), humidity, true), 1);
 }
