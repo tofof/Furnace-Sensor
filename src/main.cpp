@@ -40,19 +40,21 @@ void setup_wifi() {
 }
 
 void sendMQTTDiscoveryMsg(String topic, String name, String unit, String dev_cla, String val_tpl) {
-  String discoveryTopic = topic + "/config";
+  String discoveryTopic = "homeassistant/sensor/" + topic + "/config";
 
   DynamicJsonDocument doc(1024);
   char buffer[256];
 
   doc["name"] = name;
   doc["stat_t"] = "homeassistant/sensor/airsensor/state";
-  //doc["unit_of_meas"] = unit;
-  //doc["dev_cla"] = dev_cla;
-  //doc["frc_upd"] = true;
+  doc["unit_of_meas"] = unit;
+  doc["dev_cla"] = dev_cla;
+  doc["frc_upd"] = true;
   doc["val_tpl"] = val_tpl;
+  doc["unique_id"] = "homeassistant/sensor/" + topic;
 
   size_t n = serializeJson(doc, buffer);
+  Serial.println(buffer);
 
   mqttClient.publish(discoveryTopic.c_str(), buffer, n);
 }
@@ -67,11 +69,11 @@ void connect() {
     String mqttClientId = "";
     if (mqttClient.connect(mqttClientId.c_str(), MQTT_User, MQTT_Password)) {
       Serial.println("connected");
-      sendMQTTDiscoveryMsg("homeassistant/sensor/omronT", "Temperature", "°F", "temperature", "{{ value_json.temperatureO }}");
-      sendMQTTDiscoveryMsg("homeassistant/sensor/omronP", "Pressure", "Pa", "pressure", "{{ value_json.pressure }}");
-      sendMQTTDiscoveryMsg("homeassistant/sensor/dhtT", "Temperature", "°F", "temperature", "{{ value_json.temperatureD }}");
-      sendMQTTDiscoveryMsg("homeassistant/sensor/dhtH", "Humidity", "%", "humidity", "{{ value_json.humidity }}");
-      sendMQTTDiscoveryMsg("homeassistant/sensor/dhtI", "Heat Index", "°F", "temperature", "{{ value_json.heatindex }}");
+      sendMQTTDiscoveryMsg("omronT", "Temperature", "°F", "temperature", "{{ value_json.temperatureO }}");
+      sendMQTTDiscoveryMsg("omronP", "Pressure", "Pa", "pressure", "{{ value_json.pressure }}");
+      sendMQTTDiscoveryMsg("dhtT", "Temperature", "°F", "temperature", "{{ value_json.temperatureD }}");
+      sendMQTTDiscoveryMsg("dhtH", "Humidity", "%", "humidity", "{{ value_json.humidity }}");
+      sendMQTTDiscoveryMsg("dhtI", "Heat Index", "°F", "temperature", "{{ value_json.heatindex }}");
 
     } else {
       Serial.print("failed, rc=");
@@ -170,6 +172,7 @@ void loop() {
   //getTemperatureOmron();
   getSampleDHT();
   getReadings();
-  delay(dht.getMinimumSamplingPeriod());
+  //delay(dht.getMinimumSamplingPeriod());
+  delay(10000);
 }
 
