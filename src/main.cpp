@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <Wire.h>
 #include "Omron_D6FPH.h"
 #include "DHTesp.h"
 #include "ESP8266WiFi.h"
@@ -82,6 +83,7 @@ void connect() {
     
 void setup() {
   Serial.begin(115200);
+  Wire.begin();
   setup_wifi();
   mqttClient.setServer(MQTT_Server, MQTT_Port);
 
@@ -144,8 +146,8 @@ void getSampleDHT() {
 void getReadings() {
   DynamicJsonDocument doc(1024);
   char buffer[256];
-  doc["temperatureO"] = dht.toFahrenheit(getTemperatureOmron());
   doc["pressure"] = getPressureOmron();
+  doc["temperatureO"] = dht.toFahrenheit(getTemperatureOmron());
   float humidity = dht.getHumidity();
   float temperature = dht.getTemperature();
   float heatindex = dht.computeHeatIndex(temperature, humidity, false);
