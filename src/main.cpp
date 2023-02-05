@@ -1,12 +1,8 @@
 #include <Arduino.h>
-#include <Wire.h>
 #include "Omron_D6FPH.h"
 #include "DHTesp.h"
-#include "NTPClient.h"
 #include "ESP8266WiFi.h"
 #include "PubSubClient.h"
-#include "NTPClient.h"
-#include "WiFiUdp.h"
 #include "ArduinoJson.h"
 #include "secrets.h"
 
@@ -14,7 +10,6 @@
 #define MSG_BUFFER_SIZE (50)
 
 WiFiClient wifiClient;
-WiFiUDP ntpUDP;
 PubSubClient mqttClient(wifiClient);
 Omron_D6FPH omron;
 DHTesp dht;
@@ -87,7 +82,6 @@ void connect() {
     
 void setup() {
   Serial.begin(115200);
-  Wire.begin();
   setup_wifi();
   mqttClient.setServer(MQTT_Server, MQTT_Port);
 
