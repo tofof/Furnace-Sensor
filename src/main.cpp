@@ -5,20 +5,23 @@
 #include "ESP8266WiFi.h"
 #include "PubSubClient.h"
 #include "ArduinoJson.h"
+#include "TM1637TinyDisplay.h"
 #include "secrets.h"
 
 #define CERT mqtt_broker_cert
 #define MSG_BUFFER_SIZE (50)
+#define CLK 16
+#define DIO 14
 
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 Omron_D6FPH omron;
 DHTesp dht;
-
-
+TM1637TinyDisplay display(CLK, DIO);
 
 void setup_wifi() {
   delay(10);
+  display.showString("WIFI");
   Serial.println();
   WiFi.hostname("ESP-host");
   WiFi.setPhyMode(WIFI_PHY_MODE_11B);
@@ -60,6 +63,7 @@ void sendMQTTDiscoveryMsg(String topic, String name, String unit, String dev_cla
 // to the broker
 //--------------------------------------
 void connect() {
+  display.showString("MQTT");
   while (!mqttClient.connected()) {
     Serial.print("Attempting MQTT connection...");
     String mqttClientId = "";
@@ -70,7 +74,7 @@ void connect() {
       sendMQTTDiscoveryMsg("dhtT", "Temperature", "°F", "temperature", "{{ value_json.temperatureD }}");
       sendMQTTDiscoveryMsg("dhtH", "Humidity", "%", "humidity", "{{ value_json.humidity }}");
       sendMQTTDiscoveryMsg("dhtI", "Heat Index", "°F", "temperature", "{{ value_json.heatindex }}");
-
+      sendMQTTDiscoveryMsg("airWF", "Wifi Strength", "dBm", "signal_strength", "{{ value_json.wifi }}");
     } else {
       Serial.print("failed, rc=");
       Serial.print(mqttClient.state());
@@ -84,6 +88,7 @@ void connect() {
 void setup() {
   Serial.begin(115200);
   Wire.begin();
+  display.setBrightness(BRIGHT_7);
   setup_wifi();
   mqttClient.setServer(MQTT_Server, MQTT_Port);
 
@@ -95,7 +100,7 @@ void setup() {
   Serial.println("Status\tHumidity (%)\tTemperature (C)\t(F)\tHeatIndex (C)\t(F)");
   String thisBoard= ARDUINO_BOARD;
   Serial.println(thisBoard);
-  dht.setup(2, DHTesp::DHT22); //2 is LED, so we get a blink on each update
+  dht.setup(2, DHTesp::DHT22); //2 is LED, so we also get a blink on each update
 } 
 
 float getPressureOmron() {
@@ -146,7 +151,8 @@ void getSampleDHT() {
 void getReadings() {
   DynamicJsonDocument doc(1024);
   char buffer[256];
-  doc["pressure"] = getPressureOmron();
+  float pressure = getPressureOmron();
+  doc["pressure"] = pressure;
   doc["temperatureO"] = dht.toFahrenheit(getTemperatureOmron());
   float humidity = dht.getHumidity();
   float temperature = dht.getTemperature();
@@ -154,8 +160,13 @@ void getReadings() {
   doc["humidity"] = humidity;
   doc["temperatureD"] = dht.toFahrenheit(temperature);
   doc["heatindex"] = dht.toFahrenheit(heatindex);
+  doc["wifi"] = WiFi.RSSI();
   size_t n = serializeJson(doc, buffer);
   mqttClient.publish("homeassistant/sensor/airsensor/state", buffer, n);
+
+  //display.showString("\xB0", 1, 3); //degree symbol in rightmost (position 3)
+  //display.showNumber(dht.toFahrenheit(temperature), false, 3, 0); 
+  display.showNumber(pressure*10);
 }
 
 void loop() {
@@ -166,7 +177,7 @@ void loop() {
 
   //getPressureOmron();
   //getTemperatureOmron();
-  getSampleDHT();
+  //getSampleDHT();
   getReadings();
   //delay(dht.getMinimumSamplingPeriod());
   delay(10000);
