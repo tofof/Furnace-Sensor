@@ -41,16 +41,20 @@ void setup_wifi() {
 void sendMQTTDiscoveryMsg(String topic, String name, String unit, String dev_cla, String val_tpl) {
   String discoveryTopic = "homeassistant/sensor/" + topic + "/config";
 
-  DynamicJsonDocument doc(1024);
-  char buffer[256];
+  DynamicJsonDocument doc(1500);
+  char buffer[512];
 
   doc["name"] = name;
-  doc["stat_t"] = "homeassistant/sensor/airsensor/state";
+  doc["stat_t"] = "furn/state";
   doc["unit_of_meas"] = unit;
   doc["dev_cla"] = dev_cla;
   doc["frc_upd"] = true;
   doc["val_tpl"] = val_tpl;
-  doc["unique_id"] = "homeassistant/sensor/" + topic;
+  doc["uniq_id"] = "furn/" + topic;
+  
+  JsonObject device = doc.createNestedObject("dev");
+  device["ids"] = ["ff1"];
+  device["name"] = "furn";
 
   size_t n = serializeJson(doc, buffer);
   Serial.println(buffer);
@@ -162,7 +166,7 @@ void getReadings() {
   doc["heatindex"] = dht.toFahrenheit(heatindex);
   doc["wifi"] = WiFi.RSSI();
   size_t n = serializeJson(doc, buffer);
-  mqttClient.publish("homeassistant/sensor/airsensor/state", buffer, n);
+  mqttClient.publish("furn/state", buffer, n);
 
   //display.showString("\xB0", 1, 3); //degree symbol in rightmost (position 3)
   //display.showNumber(dht.toFahrenheit(temperature), false, 3, 0); 
