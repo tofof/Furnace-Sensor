@@ -36,6 +36,7 @@ void setup_wifi() {
   WiFi.persistent(true);
   Serial.print("WiFi connected on IP address ");
   Serial.println(WiFi.localIP());
+  delay(1000);
 }
 
 void sendMQTTDiscoveryMsg(String topic, String name, String unit, String dev_cla, String val_tpl) {
@@ -53,8 +54,8 @@ void sendMQTTDiscoveryMsg(String topic, String name, String unit, String dev_cla
   doc["uniq_id"] = "furn/" + topic;
   
   JsonObject device = doc.createNestedObject("dev");
-  device["ids"] = ["ff1"];
-  device["name"] = "furn";
+  device["ids"].add("ff1");
+  device["name"].add("furn");
 
   size_t n = serializeJson(doc, buffer);
   Serial.println(buffer);
@@ -174,16 +175,15 @@ void getReadings() {
 }
 
 void loop() {
-  if (!mqttClient.connected()) {
-    connect();
-  }
+  if (WiFi.status() != WL_CONNECTED) setup_wifi();
+  if (!mqttClient.connected()) connect();
   mqttClient.loop();
 
   //getPressureOmron();
   //getTemperatureOmron();
   //getSampleDHT();
   getReadings();
-  //delay(dht.getMinimumSamplingPeriod());
-  delay(10000);
+  delay(dht.getMinimumSamplingPeriod());
+  delay(1000);
 }
 
