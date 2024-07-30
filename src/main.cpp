@@ -55,7 +55,7 @@ void sendMQTTDiscoveryMsg(String topic, String name, String unit, String dev_cla
   
   JsonObject device = doc.createNestedObject("dev");
   device["ids"].add("ff1");
-  device["name"].add("furn");
+  device["name"].set("furn");
 
   size_t n = serializeJson(doc, buffer);
   Serial.println(buffer);
